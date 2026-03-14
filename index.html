@@ -799,14 +799,17 @@ const ABI = [
 // Market metadata (categories, etc.)
 const MARKET_META = {
   0: { category: 'crypto', catLabel: 'Crypto', featured: false },
-  1: { category: 'sports', catLabel: 'Sports', featured: false },
-  2: { category: 'tech', catLabel: 'Tech', featured: false },
-  3: { category: 'special', catLabel: '🎓 Special', featured: true },
+  1: { category: 'crypto', catLabel: 'Crypto', featured: false },
+  2: { category: 'sports', catLabel: 'Sports', featured: false },
+  3: { category: 'tech', catLabel: 'Tech', featured: false },
+  4: { category: 'politics', catLabel: 'Politics', featured: false },
+  5: { category: 'special', catLabel: '🎓 Special', featured: true },
 };
  
 let provider, signer, contract, readContract, userAddress;
 let currentMarketId, currentSide;
 let markets = [];
+let userBets = {}; // { marketId: { yes: amount, no: amount } }
  
 function showToast(msg, type = '') {
   const t = document.getElementById('toast');
@@ -876,6 +879,25 @@ async function loadMarkets() {
   document.getElementById('heroVolume').textContent = totalVol.toFixed(4) + ' ETH';
   document.getElementById('heroMarkets').textContent = total;
   document.getElementById('totalVolBadge').textContent = `${total} markets · ${totalVol.toFixed(4)} ETH volume`;
+  if (userAddress) {
+    const stored = localStorage.getItem('g6bets_' + userAddress.toLowerCase());
+    if (stored) userBets = JSON.parse(stored);
+  }
+}
+ 
+function saveUserBet(marketId, side, amount) {
+  if (!userBets[marketId]) userBets[marketId] = { yes: 0, no: 0 };
+  userBets[marketId][side] += parseFloat(amount);
+  if (userAddress) localStorage.setItem('g6bets_' + userAddress.toLowerCase(), JSON.stringify(userBets));
+}
+ 
+function userWonMarket(m) {
+  if (!userAddress || !m.resolved) return false;
+  const bets = userBets[m.id];
+  if (!bets) return false;
+  if (m.outcomeYes && bets.yes > 0) return true;
+  if (!m.outcomeYes && bets.no > 0) return true;
+  return false;
 }
  
 function yesPct(m) {
@@ -906,9 +928,10 @@ function renderMarkets() {
     } else {
       const outcomeClass = m.outcomeYes ? 'outcome-yes' : 'outcome-no';
       const outcomeText = m.outcomeYes ? '✓ YES won' : '✗ NO won';
+      const canClaim = userWonMarket(m);
       actionHTML = `
         <div class="outcome-banner ${outcomeClass}">${outcomeText} · Final pot: ${m.total.toFixed(4)} ETH</div>
-        ${userAddress ? `<button class="bet-btn bet-yes" style="width:100%" onclick="openClaimModal(${m.id}, event)">Claim Winnings</button>` : ''}`;
+        ${canClaim ? `<button class="bet-btn bet-yes" style="width:100%" onclick="openClaimModal(${m.id}, event)">Claim Winnings</button>` : ''}`;
     }
  
     card.innerHTML = `
@@ -990,6 +1013,7 @@ async function confirmBet() {
       : await contract.betNo(currentMarketId, { value });
     showToast('Transaction sent, waiting...', '');
     await tx.wait();
+    saveUserBet(currentMarketId, currentSide, amount);
     showToast(`✓ ${currentSide.toUpperCase()} bet confirmed!`, 'success');
     closeModal();
     await loadMarkets();
