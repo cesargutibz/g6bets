@@ -681,9 +681,8 @@
       G6 Bets
     </div>
     <div class="nav-links">
-      <a class="nav-link active">Markets</a>
-      <a class="nav-link">Portfolio</a>
-      <a class="nav-link">Activity</a>
+      <a class="nav-link active" onclick="showSection('markets')">Markets</a>
+      <a class="nav-link" onclick="showSection('activity')">Activity</a>
     </div>
   </div>
   <div class="nav-right">
@@ -723,8 +722,20 @@
     <div class="vol-badge" id="totalVolBadge">Loading markets...</div>
   </div>
  
-  <div class="markets-grid" id="marketsGrid">
-    <!-- Markets rendered here -->
+  <div id="marketsSection">
+    <div class="markets-grid" id="marketsGrid">
+      <!-- Markets rendered here -->
+    </div>
+  </div>
+ 
+  <div id="activitySection" style="display:none">
+    <div style="background:white;border-radius:12px;border:1px solid #e8e8e0;overflow:hidden;">
+      <div style="padding:20px 24px;border-bottom:1px solid #e8e8e0;">
+        <h2 style="font-size:16px;font-weight:700;">On-chain Activity</h2>
+        <p style="font-size:13px;color:#6b7280;margin-top:4px;">All transactions verified on Sepolia Etherscan</p>
+      </div>
+      <div id="activityList"></div>
+    </div>
   </div>
 </main>
  
@@ -798,12 +809,12 @@ const ABI = [
  
 // Market metadata (categories, etc.)
 const MARKET_META = {
-  0: { category: 'crypto', catLabel: 'Crypto', featured: false },
-  1: { category: 'crypto', catLabel: 'Crypto', featured: false },
-  2: { category: 'sports', catLabel: 'Sports', featured: false },
-  3: { category: 'tech', catLabel: 'Tech', featured: false },
-  4: { category: 'politics', catLabel: 'Politics', featured: false },
-  5: { category: 'special', catLabel: '🎓 Special', featured: true },
+  0: { category: 'crypto',   catLabel: 'Crypto',      featured: false, hidden: false, displayId: 0 },
+  1: { category: 'sports',   catLabel: 'Sports',      featured: false, hidden: false, displayId: 1 },
+  2: { category: 'tech',     catLabel: 'Tech',        featured: false, hidden: false, displayId: 2 },
+  3: { category: 'crypto',   catLabel: 'Crypto',      featured: false, hidden: true,  displayId: null },
+  4: { category: 'crypto',   catLabel: 'Crypto',      featured: false, hidden: false, displayId: 3 },
+  5: { category: 'special',  catLabel: '🎓 Special',  featured: true,  hidden: false, displayId: 4 },
 };
  
 let provider, signer, contract, readContract, userAddress;
@@ -876,6 +887,7 @@ async function loadMarkets() {
       total: yes + no
     });
   }
+  markets = markets.filter(m => m.total > 0);
   markets.reverse();
   document.getElementById('heroVolume').textContent = totalVol.toFixed(4) + ' ETH';
   document.getElementById('heroMarkets').textContent = total;
@@ -910,7 +922,9 @@ function renderMarkets() {
   const grid = document.getElementById('marketsGrid');
   grid.innerHTML = '';
   markets.forEach(m => {
-    const meta = MARKET_META[m.id] || { category: 'crypto', catLabel: 'Crypto', featured: false };
+    const meta = MARKET_META[m.id] || { category: 'crypto', catLabel: 'Crypto', featured: false, hidden: false, displayId: m.id };
+    if (meta.hidden) return;
+    const displayId = meta.displayId !== null ? meta.displayId : m.id;
     const pct = yesPct(m);
     const isLive = !m.resolved;
  
@@ -980,7 +994,7 @@ function renderMarkets() {
       ${actionHTML}
       <div class="card-footer">
         <span class="end-time" id="timer-${m.id}">${timeLabel}</span>
-        <span class="vol-badge">Market #${m.id}</span>
+        <span class="vol-badge">Market #${displayId}</span>
       </div>
     `;
     grid.appendChild(card);
@@ -1074,6 +1088,55 @@ async function confirmClaim() {
   }
 }
  
+// Section switcher
+function showSection(section) {
+  document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+  event.target.classList.add('active');
+  document.getElementById('marketsSection').style.display = section === 'markets' ? '' : 'none';
+  document.getElementById('activitySection').style.display = section === 'activity' ? '' : 'none';
+  if (section === 'activity') renderActivity();
+}
+ 
+const TRANSACTIONS = [
+  { type: 'Deploy',          market: null, hash: null,  desc: 'Contract deployed to Sepolia' },
+  { type: 'Create Market',   market: 0,    hash: null,  desc: 'Market #0 — Did Bitcoin reach $100,000 before end of 2025?' },
+  { type: 'Bet YES',         market: 0,    hash: null,  desc: 'Market #0 — 0.005 ETH on YES' },
+  { type: 'Bet NO',          market: 0,    hash: null,  desc: 'Market #0 — 0.001 ETH on NO' },
+  { type: 'Resolve',         market: 0,    hash: null,  desc: 'Market #0 — Resolved YES ✓' },
+  { type: 'Claim',           market: 0,    hash: null,  desc: 'Market #0 — Winnings claimed' },
+  { type: 'Create Market',   market: 1,    hash: null,  desc: 'Market #1 — Did Real Madrid win La Liga 2024/25?' },
+  { type: 'Bet YES',         market: 1,    hash: null,  desc: 'Market #1 — 0.005 ETH on YES' },
+  { type: 'Resolve',         market: 1,    hash: null,  desc: 'Market #1 — Resolved NO ✓ (Barcelona won)' },
+  { type: 'Create Market',   market: 2,    hash: null,  desc: 'Market #2 — Did Apple release the iPhone 17 in September 2025?' },
+  { type: 'Bet YES',         market: 2,    hash: null,  desc: 'Market #2 — 0.016 ETH on YES' },
+  { type: 'Resolve',         market: 2,    hash: null,  desc: 'Market #2 — Resolved YES ✓' },
+  { type: 'Create Market',   market: 3,    hash: null,  desc: 'Market #3 — Did Ethereum close above $8,000 in Q4 2025?' },
+  { type: 'Bet NO',          market: 3,    hash: null,  desc: 'Market #3 — 0.015 ETH on NO' },
+  { type: 'Resolve',         market: 3,    hash: null,  desc: 'Market #3 — Resolved NO ✓' },
+  { type: 'Create Market',   market: 4,    hash: null,  desc: 'Market #4 — Will Group 6 get the highest grade in IE Blockchain class?' },
+  { type: 'Bet YES',         market: 4,    hash: null,  desc: 'Market #4 — LIVE, open for bets' },
+];
+ 
+const TYPE_COLORS = {
+  'Deploy':        '#1d4ed8',
+  'Create Market': '#7c3aed',
+  'Bet YES':       '#16a34a',
+  'Bet NO':        '#dc2626',
+  'Resolve':       '#ca8a04',
+  'Claim':         '#16a34a',
+};
+ 
+function renderActivity() {
+  const list = document.getElementById('activityList');
+  list.innerHTML = TRANSACTIONS.map((tx, i) => `
+    <div style="padding:14px 24px;border-bottom:1px solid #f3f4f6;display:flex;align-items:center;gap:16px;">
+      <span style="background:${TYPE_COLORS[tx.type]}15;color:${TYPE_COLORS[tx.type]};font-size:11px;font-weight:700;padding:3px 8px;border-radius:4px;min-width:100px;text-align:center">${tx.type}</span>
+      <span style="flex:1;font-size:13px;color:#374151">${tx.desc}</span>
+      <a href="https://sepolia.etherscan.io/address/0x52D4E231FfDe09a977925ca67e7f85bfd7E4382a" target="_blank" style="font-size:12px;color:#1d4ed8;text-decoration:none;font-weight:500">View on Etherscan →</a>
+    </div>
+  `).join('');
+}
+ 
 // Live countdown
 function startCountdown() {
   setInterval(() => {
@@ -1120,4 +1183,3 @@ document.head.appendChild(ethersScript);
 </script>
 </body>
 </html>
- 
