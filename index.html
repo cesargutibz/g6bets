@@ -918,6 +918,20 @@ function renderMarkets() {
     card.className = 'market-card' + (meta.featured ? ' featured' : '');
  
     const endDate = new Date(m.endTime * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    const now = Math.floor(Date.now() / 1000);
+    const secsLeft = m.endTime - now;
+    let timeLabel = '';
+    if (isLive && secsLeft > 0) {
+      const mins = Math.floor(secsLeft / 60);
+      const secs = secsLeft % 60;
+      if (mins > 60) timeLabel = `Closes in ${Math.floor(mins/60)}h ${mins%60}m`;
+      else if (mins > 0) timeLabel = `Closes in ${mins}m ${secs}s`;
+      else timeLabel = `Closes in ${secs}s`;
+    } else if (isLive) {
+      timeLabel = 'Closing soon...';
+    } else {
+      timeLabel = 'Ended ' + endDate;
+    }
  
     let actionHTML = '';
     if (isLive) {
@@ -965,7 +979,7 @@ function renderMarkets() {
       </div>
       ${actionHTML}
       <div class="card-footer">
-        <span class="end-time">${isLive ? 'Ends ' + endDate : 'Ended ' + endDate}</span>
+        <span class="end-time" id="timer-${m.id}">${timeLabel}</span>
         <span class="vol-badge">Market #${m.id}</span>
       </div>
     `;
@@ -1060,6 +1074,24 @@ async function confirmClaim() {
   }
 }
  
+// Live countdown
+function startCountdown() {
+  setInterval(() => {
+    markets.forEach(m => {
+      if (m.resolved) return;
+      const el = document.getElementById('timer-' + m.id);
+      if (!el) return;
+      const secsLeft = m.endTime - Math.floor(Date.now() / 1000);
+      if (secsLeft <= 0) { el.textContent = 'Closing soon...'; return; }
+      const mins = Math.floor(secsLeft / 60);
+      const secs = secsLeft % 60;
+      if (mins > 60) el.textContent = 'Closes in ' + Math.floor(mins/60) + 'h ' + (mins%60) + 'm';
+      else if (mins > 0) el.textContent = 'Closes in ' + mins + 'm ' + secs + 's';
+      else el.textContent = 'Closes in ' + secs + 's';
+    });
+  }, 1000);
+}
+ 
 // Filter tabs
 document.querySelectorAll('.filter-tab').forEach(tab => {
   tab.addEventListener('click', function() {
@@ -1079,6 +1111,7 @@ ethersScript.onload = async () => {
   try {
     await loadMarkets();
     renderMarkets();
+    startCountdown();
   } catch(e) {
     document.getElementById('totalVolBadge').textContent = 'Error loading markets';
   }
