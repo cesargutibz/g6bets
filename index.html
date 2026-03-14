@@ -876,6 +876,7 @@ async function loadMarkets() {
       total: yes + no
     });
   }
+  markets.reverse();
   document.getElementById('heroVolume').textContent = totalVol.toFixed(4) + ' ETH';
   document.getElementById('heroMarkets').textContent = total;
   document.getElementById('totalVolBadge').textContent = `${total} markets · ${totalVol.toFixed(4)} ETH volume`;
@@ -1087,3 +1088,4 @@ document.head.appendChild(ethersScript);
 </script>
 </body>
 </html>
+ 
