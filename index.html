@@ -929,10 +929,9 @@ function renderMarkets() {
     } else {
       const outcomeClass = m.outcomeYes ? 'outcome-yes' : 'outcome-no';
       const outcomeText = m.outcomeYes ? '✓ YES won' : '✗ NO won';
-      const canClaim = userWonMarket(m);
       actionHTML = `
         <div class="outcome-banner ${outcomeClass}">${outcomeText} · Final pot: ${m.total.toFixed(4)} ETH</div>
-        ${canClaim ? `<button class="bet-btn bet-yes" style="width:100%" onclick="openClaimModal(${m.id}, event)">Claim Winnings</button>` : ''}`;
+        ${userAddress ? `<button class="bet-btn bet-yes" style="width:100%" onclick="openClaimModal(${m.id}, event)">Claim Winnings</button>` : ''}`;
     }
  
     card.innerHTML = `
@@ -1088,4 +1087,3 @@ document.head.appendChild(ethersScript);
 </script>
 </body>
 </html>
- 
